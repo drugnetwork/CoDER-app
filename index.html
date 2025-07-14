@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drug Network Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .controls {
+            width: 320px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            box-shadow: 2px 0 20px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .controls h2 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.4em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .filter-group {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+        
+        .filter-group h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #555;
+            font-size: 1.1em;
+        }
+        
+        input, select {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin: 8px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin: 5px 0;
+            box-sizing: border-box;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .button-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .button-row button {
+            flex: 1;
+        }
+        
+        #cy {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.98);
+            margin: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            max-width: 350px;
+            min-width: 250px;
+            display: none;
+            z-index: 1000;
+            border: 2px solid #667eea;
+        }
+        
+        .info-panel h3 {
+            margin-top: 0;
+            color: #667eea;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .info-panel p {
+            margin: 10px 0;
+            line-height: 1.4;
+        }
+        
+        .info-panel strong {
+            color: #333;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #999;
+            width: auto;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .close-btn:hover {
+            color: #667eea;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .network-stats {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <h2>🎛️ Network Controls</h2>
+            
+            <div class="filter-group">
+                <h3>🔍 Drug Filters</h3>
+                <input type="text" id="drugSearchFilter" placeholder="Search drugs...">
+                <select id="drugSelect" multiple size="8">
+                    <!-- Will be populated dynamically -->
+                </select>
+                <div class="button-row">
+                    <button onclick="applyDrugFilter()">Apply</button>
+                    <button onclick="clearDrugFilter()">Clear</button>
+                </div>
+            </div>
+            
+            <div class="filter-group">
+                <h3>🧬 Tissue Filters</h3>
+                <input type="text" id="tissueSearchFilter" placeholder="Search tissues...">
+                <select id="tissueSelect" multiple size="8">
+                    <!-- Will be populated dynamically -->
+                </select>
+                <div class="button-row">
+                    <button onclick="applyTissueFilter()">Apply</button>
+                    <button onclick="clearTissueFilter()">Clear</button>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <h3>📊 Layout Options</h3>
+                <button onclick="applyLayout('cose')">Force Layout</button>
+                <button onclick="applyLayout('circle')">Circle Layout</button>
+                <button onclick="applyLayout('grid')">Grid Layout</button>
+                <button onclick="fitToScreen()">Fit to Screen</button>
+            </div>
+        </div>
+        
+        <div id="cy">
+            <div class="network-stats" id="networkStats">
+                Loading network...
+            </div>
+        </div>
+        
+        <div class="info-panel" id="infoPanel">
+            <button class="close-btn" onclick="hideElementInfo()">&times;</button>
+            <h3 id="infoPanelTitle">Element Info</h3>
+            <div id="elementInfo"></div>
+        </div>
+    </div>
+
+    <script>
+        let cy;
+        let originalNodes = [];
+        let originalEdges = [];
+
+        // Sample data - replace this with your actual data loading
+        const sampleData = {
+            nodes: [
+                { data: { id: 'drug1', label: 'Aspirin' } },
+                { data: { id: 'drug2', label: 'Ibuprofen' } },
+                { data: { id: 'drug3', label: 'Acetaminophen' } },
+                { data: { id: 'drug4', label: 'Morphine' } },
+                { data: { id: 'drug5', label: 'Codeine' } },
+                { data: { id: 'drug6', label: 'Warfarin' } },
+                { data: { id: 'drug7', label: 'Metformin' } },
+                { data: { id: 'drug8', label: 'Insulin' } }
+            ],
+            edges: [
+                { data: { id: 'e1', source: 'drug1', target: 'drug2', label: 'Liver, Kidney' } },
+                { data: { id: 'e2', source: 'drug1', target: 'drug3', label: 'Liver' } },
+                { data: { id: 'e3', source: 'drug2', target: 'drug4', label: 'Brain, Liver' } },
+                { data: { id: 'e4', source: 'drug3', target: 'drug5', label: 'Brain' } },
+                { data: { id: 'e5', source: 'drug4', target: 'drug5', label: 'Brain, Spinal Cord' } },
+                { data: { id: 'e6', source: 'drug6', target: 'drug7', label: 'Blood, Liver' } },
+                { data: { id: 'e7', source: 'drug7', target: 'drug8', label: 'Pancreas, Liver' } },
+                { data: { id: 'e8', source: 'drug1', target: 'drug6', label: 'Blood' } }
+            ]
+        };
+
+        async function initializeVisualization() {
+            cy = cytoscape({
+                container: document.getElementById('cy'),
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'background-color': '#667eea',
+                            'label': 'data(label)',
+                            'color': '#fff',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'font-size': '10px',
+                            'font-weight': 'bold',
+                            'width': '60px',
+                            'height': '60px',
+                            'border-width': 2,
+                            'border-color': '#fff',
+                            'text-wrap': 'wrap',
+                            'text-max-width': '55px'
+                        }
+                    },
+                    {
+                        selector: 'node:selected',
+                        style: {
+                            'background-color': '#ff6b6b',
+                            'border-color': '#ff4757',
+                            'border-width': 3
+                        }
+                    },
+                    {
+                        selector: 'node:hover',
+                        style: {
+                            'background-color': '#4834d4',
+                            'border-width': 3
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'width': 3,
+                            'line-color': '#95a5a6',
+                            'target-arrow-color': '#95a5a6',
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier',
+                            'label': '',
+                            'font-size': '8px',
+                            'text-background-color': '#fff',
+                            'text-background-opacity': 0.9,
+                            'text-background-padding': '2px'
+                        }
+                    },
+                    {
+                        selector: 'edge:selected',
+                        style: {
+                            'line-color': '#ff6b6b',
+                            'target-arrow-color': '#ff6b6b',
+                            'width': 4,
+                            'label': 'data(label)'
+                        }
+                    },
+                    {
+                        selector: 'edge:hover',
+                        style: {
+                            'line-color': '#4834d4',
+                            'target-arrow-color': '#4834d4',
+                            'width': 4
+                        }
+                    }
+                ],
+                layout: {
+                    name: 'cose',
+                    animate: true,
+                    animationDuration: 1000,
+                    fit: true,
+                    padding: 50
+                }
+            });
+
+            try {
+                // Try to load actual data, fall back to sample data
+                let data;
+                try {
+                    const response = await fetch('drug_tissue_network2.json');
+                    data = await response.json();
+                } catch (error) {
+                    console.warn('Could not load drug_tissue_network2.json, using sample data');
+                    data = sampleData;
+                }
+                
+                originalNodes = data.nodes || [];
+                originalEdges = data.edges || [];
+                
+                cy.add([...originalNodes, ...originalEdges]);
+                populateFilters();
+                setupEventHandlers();
+                updateNetworkStats();
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                // Use sample data as fallback
+                originalNodes = sampleData.nodes;
+                originalEdges = sampleData.edges;
+                cy.add([...originalNodes, ...originalEdges]);
+                populateFilters();
+                setupEventHandlers();
+                updateNetworkStats();
+            }
+        }
+
+        function populateFilters() {
+            const drugSelect = document.getElementById('drugSelect');
+            const tissueSelect = document.getElementById('tissueSelect');
+            
+            drugSelect.innerHTML = '';
+            tissueSelect.innerHTML = '';
+            
+            // Get unique drugs
+            const drugs = new Set();
+            cy.nodes().forEach(node => {
+                drugs.add(node.data('label'));
+            });
+            
+            // Get unique tissues
+            const tissues = new Set();
+            cy.edges().forEach(edge => {
+                const tissueSets = edge.data('label').split(', ');
+                tissueSets.forEach(tissue => tissues.add(tissue.trim()));
+            });
+            
+            // Populate drug options
+            [...drugs].sort().forEach(drug => {
+                const option = document.createElement('option');
+                option.value = drug;
+                option.text = drug;
+                drugSelect.appendChild(option);
+            });
+            
+            // Populate tissue options
+            [...tissues].sort().forEach(tissue => {
+                const option = document.createElement('option');
+                option.value = tissue;
+                option.text = tissue;
+                tissueSelect.appendChild(option);
+            });
+        }
+
+        function setupEventHandlers() {
+            // Drug search filter
+            document.getElementById('drugSearchFilter').addEventListener('input', function(e) {
+                filterOptions('drugSelect', e.target.value);
+            });
+
+            // Tissue search filter
+            document.getElementById('tissueSearchFilter').addEventListener('input', function(e) {
+                filterOptions('tissueSelect', e.target.value);
+            });
+
+            // Node click handler
+            cy.on('tap', 'node', function(evt) {
+                evt.stopPropagation();
+                showElementInfo(evt.target);
+            });
+
+            // Edge click handler
+            cy.on('tap', 'edge', function(evt) {
+                evt.stopPropagation();
+                showElementInfo(evt.target);
+            });
+
+            // Background click handler
+            cy.on('tap', function(evt) {
+                if (evt.target === cy) {
+                    hideElementInfo();
+                    cy.elements().unselect();
+                }
+            });
+
+            // Mouse events for better interactivity
+            cy.on('mouseover', 'node', function(evt) {
+                evt.target.connectedEdges().style('line-color', '#4834d4');
+            });
+
+            cy.on('mouseout', 'node', function(evt) {
+                if (!evt.target.selected()) {
+                    evt.target.connectedEdges().style('line-color', '#95a5a6');
+                }
+            });
+        }
+
+        function filterOptions(selectId, searchText) {
+            const select = document.getElementById(selectId);
+            const options = select.options;
+            const search = searchText.toLowerCase();
+            
+            for (let i = 0; i < options.length; i++) {
+                const option = options[i];
+                const show = option.text.toLowerCase().includes(search);
+                option.style.display = show ? '' : 'none';
+            }
+        }
+
+        function applyDrugFilter() {
+            const selectedDrugs = Array.from(document.getElementById('drugSelect').selectedOptions)
+                .map(option => option.value);
+            
+            if (selectedDrugs.length === 0) {
+                // Show all nodes if no filter selected
+                cy.nodes().style('display', 'element');
+            } else {
+                cy.nodes().forEach(node => {
+                    const isVisible = selectedDrugs.includes(node.data('label'));
+                    node.style('display', isVisible ? 'element' : 'none');
+                });
+            }
+            
+            updateEdgeVisibility();
+            updateNetworkStats();
+        }
+
+        function applyTissueFilter() {
+            const selectedTissues = Array.from(document.getElementById('tissueSelect').selectedOptions)
+                .map(option => option.value);
+            
+            if (selectedTissues.length === 0) {
+                // Show all edges if no filter selected
+                cy.edges().style('display', 'element');
+            } else {
+                cy.edges().forEach(edge => {
+                    const edgeTissues = edge.data('label').split(', ').map(t => t.trim());
+                    const isVisible = edgeTissues.some(tissue => selectedTissues.includes(tissue));
+                    edge.style('display', isVisible ? 'element' : 'none');
+                });
+            }
+            
+            updateNodeVisibility();
+            updateNetworkStats();
+        }
+
+        function clearDrugFilter() {
+            const drugSelect = document.getElementById('drugSelect');
+            for (let i = 0; i < drugSelect.options.length; i++) {
+                drugSelect.options[i].selected = false;
+            }
+            cy.nodes().style('display', 'element');
+            updateEdgeVisibility();
+            updateNetworkStats();
+        }
+
+        function clearTissueFilter() {
+            const tissueSelect = document.getElementById('tissueSelect');
+            for (let i = 0; i < tissueSelect.options.length; i++) {
+                tissueSelect.options[i].selected = false;
+            }
+            cy.edges().style('display', 'element');
+            updateNodeVisibility();
+            updateNetworkStats();
+        }
+
+        function updateEdgeVisibility() {
+            cy.edges().forEach(edge => {
+                const sourceVisible = edge.source().style('display') === 'element';
+                const targetVisible = edge.target().style('display') === 'element';
+                if (edge.style('display') === 'element') {
+                    edge.style('display', (sourceVisible && targetVisible) ? 'element' : 'none');
+                }
+            });
+        }
+
+        function updateNodeVisibility() {
+            cy.nodes().forEach(node => {
+                const hasVisibleEdge = node.connectedEdges().some(edge => edge.style('display') === 'element');
+                if (node.style('display') === 'element') {
+                    node.style('display', hasVisibleEdge ? 'element' : 'none');
+                }
+            });
+        }
+
+        function showElementInfo(element) {
+            const infoPanel = document.getElementById('infoPanel');
+            const elementInfo = document.getElementById('elementInfo');
+            const title = document.getElementById('infoPanelTitle');
+            
+            // Unselect all elements first
+            cy.elements().unselect();
+            // Select the clicked element
+            element.select();
+            
+            if (element.isNode()) {
+                title.textContent = 'Drug Information';
+                const connectedTissues = getConnectedTissues(element);
+                elementInfo.innerHTML = `
+                    <p><strong>Drug Name:</strong> ${element.data('label')}</p>
+                    <p><strong>Connected Drugs:</strong> ${getConnectedDrugs(element)}</p>
+                    <p><strong>Associated Tissues:</strong> ${connectedTissues || 'None'}</p>
+                    <p><strong>Connections:</strong> ${element.degree()}</p>
+                `;
+            } else {
+                title.textContent = 'Connection Information';
+                elementInfo.innerHTML = `
+                    <p><strong>Tissues/Organs:</strong> ${element.data('label')}</p>
+                    <p><strong>Connected Drugs:</strong> ${element.source().data('label')} ↔ ${element.target().data('label')}</p>
+                    <p><strong>Connection Type:</strong> Tissue interaction</p>
+                `;
+            }
+            
+            infoPanel.style.display = 'block';
+        }
+
+        function hideElementInfo() {
+            document.getElementById('infoPanel').style.display = 'none';
+            cy.elements().unselect();
+        }
+
+        function getConnectedDrugs(node) {
+            const connectedDrugs = new Set();
+            node.connectedEdges().forEach(edge => {
+                const otherNode = edge.otherNode(node);
+                connectedDrugs.add(otherNode.data('label'));
+            });
+            return Array.from(connectedDrugs).join(', ') || 'None';
+        }
+
+        function getConnectedTissues(node) {
+            const tissues = new Set();
+            node.connectedEdges().forEach(edge => {
+                const tissueSets = edge.data('label').split(', ');
+                tissueSets.forEach(tissue => tissues.add(tissue.trim()));
+            });
+            return Array.from(tissues).join(', ');
+        }
+
+        function applyLayout(layoutName = 'cose') {
+            const layoutOptions = {
+                'cose': {
+                    name: 'cose',
+                    animate: true,
+                    animationDuration: 1000,
+                    fit: true,
+                    padding: 50,
+                    nodeRepulsion: 400000,
+                    idealEdgeLength: 100
+                },
+                'circle': {
+                    name: 'circle',
+                    animate: true,
+                    animationDuration: 1000,
+                    fit: true,
+                    padding: 50
+                },
+                'grid': {
+                    name: 'grid',
+                    animate: true,
+                    animationDuration: 1000,
+                    fit: true,
+                    padding: 50,
+                    rows: Math.ceil(Math.sqrt(cy.nodes().length))
+                }
+            };
+
+            cy.layout(layoutOptions[layoutName] || layoutOptions['cose']).run();
+        }
+
+        function fitToScreen() {
+            cy.fit(cy.elements(), 50);
+        }
+
+        function updateNetworkStats() {
+            const visibleNodes = cy.nodes().filter(node => node.style('display') === 'element');
+            const visibleEdges = cy.edges().filter(edge => edge.style('display') === 'element');
+            
+            document.getElementById('networkStats').innerHTML = `
+                Nodes: ${visibleNodes.length}/${originalNodes.length} | 
+                Edges: ${visibleEdges.length}/${originalEdges.length}
+            `;
+        }
+
+        // Initialize the visualization
+        initializeVisualization();
+    </script>
+</body>
+</html>
