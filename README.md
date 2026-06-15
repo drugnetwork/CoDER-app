@@ -5,6 +5,7 @@ CoDER-app is an interactive visualization interface and reproducibility reposito
 ## Repository Contents
 
 - `efficacy.csv`: drug–tissue efficacy matrix (for Neurodegenerative diseases)used by the CoDER visualization.
+- `CoDER_seed_exp.ipynb` – Reproducibility and seed-sensitivity experiments.
 - `fullversion.ipynb`: notebook containing the main CoDER analysis pipeline.
 - `index.html`: web-based visualization interface.
 - `newnetwork05.html`: interactive drug-network visualization.
