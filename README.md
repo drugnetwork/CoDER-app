@@ -10,7 +10,7 @@ CoDER-app is an interactive visualization interface and reproducibility reposito
 - `index.html`: web-based visualization interface.
 - `newnetwork05.html`: interactive drug-network visualization.
 - `Datasets` : containing drug-gene association and disease-gene association datasets for neurodegenerative diseases, COPD (BPCO) and Diabetes.
-- `Other algorithms`: contains Tissue-aware versions of Kemmeny, Shculze, and Ranked-Pair algorithms. 
+- `Other algorithms`: contains Tissue-aware versions of Kemmeny, Schulze, and Ranked-Pair algorithms. 
 
 ## Reproducibility
 
