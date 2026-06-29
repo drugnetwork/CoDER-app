@@ -9,10 +9,12 @@ CoDER-app is an interactive visualization interface and reproducibility reposito
 - `fullversion.ipynb`: notebook containing the main CoDER analysis pipeline.
 - `index.html`: web-based visualization interface.
 - `newnetwork05.html`: interactive drug-network visualization.
+- `Datasets` : containing drug-gene association and disease-gene association datasets for neurodegenerative diseases, COPD (BPCO) and Diabetes.
 
 ## Reproducibility
 
 To address stochasticity introduced by random partitioning, we evaluated CoDER using multiple random seeds.
+To reproduce the results, replace the efficacy file name corresponding to the disease you want the results for.  
 
 ### Random Seeds
 
